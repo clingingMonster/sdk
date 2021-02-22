@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="so.dian.scm.batch.sdk.mapper.AsyncBatchTaskOrderDAOMapper">
+    <resultMap id="BaseResultMap" type="so.dian.scm.batch.sdk.common.dao.AsyncBatchTaskOrderDAO">
+        <id column="id" jdbcType="BIGINT" property="id"/>
+        <result column="order_no" jdbcType="VARCHAR" property="orderNo"/>
+        <result column="ext_mark" jdbcType="VARCHAR" property="extMark"/>
+        <result column="spring_handler_class_name" jdbcType="VARCHAR" property="springHandlerClassName"/>
+        <result column="request_param" jdbcType="VARCHAR" property="requestParam"/>
+        <result column="original_request_param" jdbcType="VARCHAR" property="originalRequestParam"/>
+        <result column="max_retry_times" jdbcType="TINYINT" property="maxRetryTimes"/>
+        <result column="fail_times" jdbcType="TINYINT" property="failTimes"/>
+        <result column="lowest_interval_time" jdbcType="INTEGER" property="lowestIntervalTime"/>
+        <result column="next_execute_time" property="nextExecuteTime"/>
+        <result column="status" jdbcType="TINYINT" property="status"/>
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime"/>
+        <result column="deleted" jdbcType="TINYINT" property="deleted"/>
+        <result column="gmt_create" jdbcType="BIGINT" property="gmtCreate"/>
+        <result column="gmt_update" jdbcType="BIGINT" property="gmtUpdate"/>
+    </resultMap>
+    <sql id="Base_Column_List">
+    id, order_no, ext_mark, spring_handler_class_name, request_param,original_request_param,
+    max_retry_times,fail_times, lowest_interval_time, next_execute_time,`status`, create_time, update_time, deleted,
+    gmt_create, gmt_update
+  </sql>
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from async_batch_task_order
+        where id = #{id,jdbcType=BIGINT}
+    </select>
+
+    <insert id="insert" keyColumn="id" keyProperty="id"
+            parameterType="so.dian.scm.batch.sdk.common.dao.AsyncBatchTaskOrderDAO" useGeneratedKeys="true">
+    insert into async_batch_task_order (order_no, ext_mark, spring_handler_class_name,
+      request_param, original_request_param, max_retry_times,
+      lowest_interval_time, next_execute_time,`status`, gmt_create, gmt_update)
+    values (#{orderNo,jdbcType=VARCHAR}, #{extMark,jdbcType=VARCHAR}, #{springHandlerClassName,jdbcType=VARCHAR}, 
+      #{requestParam,jdbcType=VARCHAR}, #{originalRequestParam,jdbcType=VARCHAR}, #{maxRetryTimes,jdbcType=TINYINT},
+      #{lowestIntervalTime,jdbcType=INTEGER},#{nextExecuteTime}, #{status,jdbcType=TINYINT},  #{gmtCreate,jdbcType=BIGINT},
+      #{gmtUpdate,jdbcType=BIGINT})
+  </insert>
+
+
+    <select id="selectByOrderNo" parameterType="object" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from async_batch_task_order
+        where order_no = #{orderNo}
+        and ext_mark = #{extMark}
+        and deleted =0
+        limit 1
+    </select>
+
+    <update id="confirmOrder" parameterType="object">
+    update async_batch_task_order
+    set status = 2
+    where status = 1
+    and order_no = #{orderNo}
+    and ext_mark = #{extMark}
+        and deleted =0
+    limit 1
+  </update>
+
+    <update id="cancelOrder" parameterType="object">
+    update async_batch_task_order
+    set deleted = id
+    where status = 1
+    and order_no = #{orderNo}
+    and ext_mark = #{extMark}
+        and deleted =0
+    limit 1
+  </update>
+
+    <select id="getExecuteTask" parameterType="object" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from async_batch_task_order
+        where id >#{id}
+        and next_execute_time between #{startDate} and #{endDate}
+        and status in (1,2,4)
+        and fail_times  <![CDATA[<]]>  max_retry_times
+        and deleted = 0
+        order by next_execute_time
+        limit 1
+    </select>
+
+    <update id="updateExecuteParam" parameterType="object">
+        update async_batch_task_order
+        set request_param = #{requestParam},
+        original_request_param = #{originalRequestParam},
+        fail_times = 0,
+        next_execute_time = #{nextExecuteDate}
+        where order_no =#{orderNo}
+        and ext_mark = #{extMark}
+        and deleted =0
+        limit 1
+    </update>
+
+    <update id="updateExecuteFail" parameterType="object">
+        update async_batch_task_order
+        set  fail_times = fail_times +1,
+        status = #{status}
+        where order_no = #{orderNo}
+        and ext_mark = #{extMark}
+        and deleted =0
+        limit 1
+    </update>
+
+    <update id="updateOrderStatus" parameterType="object">
+        update  async_batch_task_order
+        set status = #{status}
+        where order_no = #{orderNo}
+        and ext_mark = #{extMark}
+        and deleted =0
+        limit 1
+    </update>
+
+    <update id="updateNextExecuteDate" parameterType="object">
+        update  async_batch_task_order
+        set next_execute_time = #{nextExecuteDate}
+        where order_no = #{orderNo}
+        and ext_mark = #{extMark}
+        and deleted =0
+        limit 1
+    </update>
+
+    <update id="update" parameterType="so.dian.scm.batch.sdk.common.dao.AsyncBatchTaskOrderDAO">
+        update async_batch_task_order
+        <set>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="failTimes != null ">
+                fail_times = #{failTimes},
+            </if>
+            <if test="nextExecuteTime !=null ">
+                next_execute_time = #{nextExecuteTime},
+            </if>
+            <if test="requestParam != null and requestParam != ''">
+                request_param = #{requestParam},
+                original_request_param = #{originalRequestParam},
+            </if>
+            <if test="deleted != null">
+                deleted = #{deleted}
+            </if>
+        </set>
+        where id = #{id}
+        and deleted =0
+        limit 1
+    </update>
+
+
+</mapper>
